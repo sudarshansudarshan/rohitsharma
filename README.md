@@ -10,3 +10,5 @@ We discussed the blueprint for the UI/UX of the Peer Evaluation System. The atta
 14th Oct 2024: - Finalized the Admin and Teacher dashboard with the required functionality. The TA dashboard is also ready but requires some input regarding which functionalities need to be kept.
 
 16th Oct 2024: - We are testing the UI/UX and fixing any bugs found, while also adding additional features as needed.
+
+22nd Oct 2024: - We are working on the issue of passing the number of questions from the front end to the back end, which has arisen due to changes in the registration window and other updates to the code.
