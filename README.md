@@ -12,3 +12,5 @@ We discussed the blueprint for the UI/UX of the Peer Evaluation System. The atta
 16th Oct 2024: - We are testing the UI/UX and fixing any bugs found, while also adding additional features as needed.
 
 22nd Oct 2024: - We are working on the issue of passing the number of questions from the front end to the back end, which has arisen due to changes in the registration window and other updates to the code.
+
+4th Nov 2024: - We have continued the deployment process and studied the research paper related to the Peer Evaluation. We will also start writing the research paper once the deployment is done.
