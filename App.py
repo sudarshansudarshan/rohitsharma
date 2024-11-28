@@ -14,6 +14,7 @@ from Rename_File import process_pdfs_in_folder  # process_signatures, load_store
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.errors import HttpError
 from oauth2client.service_account import ServiceAccountCredentials
 from email.mime.text import MIMEText
 
@@ -24,6 +25,8 @@ SCOPE = [
 ]
 CREDENTIALS_FILE = "peer-evaluation-440806-5b8bd496fe1e.json"
 SHEET_NAME = "UserRoles"
+
+web_app_url = "https://script.google.com/macros/s/AKfycbzl5j0rCy0W0nqO6PAikwoycMyJTnUDDO1pceE1sjiMbHTDebMdV0qglhL6fp0Ni6Vx/exec"
 
 
 # Initialize connection to Google Sheets
@@ -95,7 +98,7 @@ def register_user(username, password, name):
     sheet = connect_to_google_sheets()
 
     # Check if the email contains numeric values (assumed to be student)
-    if re.search(r'\d', username):
+    if re.search(r'\d', username) or not username.endswith("@iitrpr.ac.in"):
         role = "Student"
     else:
         role = "Teacher"
@@ -109,6 +112,14 @@ def register_user(username, password, name):
     sheet.append_row(new_user)
     return role
 
+def update_role_to_Teacher(username):
+    sheet = connect_to_google_sheets()
+    records = sheet.get_all_records()
+    for i, user in enumerate(records, start=2):  # start=2 to account for 1-based index in Google Sheets
+        if user['username'] == username: #and user['role'] == 'Student':
+            sheet.update_cell(i, 3, 'Teacher')  # Assuming role is in column 3
+            return True
+    return False
 
 # Update role from Student to TA (only for Teachers)
 def update_role_to_ta(username):
@@ -126,7 +137,7 @@ def update_role_to_Student(username):
     sheet = connect_to_google_sheets()
     records = sheet.get_all_records()
     for i, user in enumerate(records, start=2):  # start=2 to account for 1-based index in Google Sheets
-        if user['username'] == username and user['role'] == 'TA':
+        if user['username'] == username: #and user['role'] == 'TA':
             sheet.update_cell(i, 3, 'Student')  # Assuming role is in column 3
             return True
     return False
@@ -213,7 +224,6 @@ def change_password_dashboard():
 
 
 def trigger_google_apps_script(function_name):
-    web_app_url = "https://script.google.com/macros/s/AKfycbzaDj2vsimhgNg85w2tNi8v06zCGQjHi3o476JGKAvzs9eCBcgZlcAm7SDaCSWMYwJD/exec"
 
 
     url = f"{web_app_url}?action={function_name}"  # Append the function name as the 'action' parameter
@@ -225,6 +235,21 @@ def trigger_google_apps_script(function_name):
             st.error(f"Failed to execute {function_name}. Status code: {response.status_code}")
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+
+def send_data_to_script(param_value):
+    url = f"{web_app_url}?action={'SetParameter'}"
+    try:
+        # Use GET for simple parameters
+
+        response = requests.get(url, params={'param': param_value})
+
+        if response.status_code == 200:
+            st.success(f"Response from Google Apps Script: {response.text}")
+        else:
+            st.error(f"Failed to communicate with Apps Script: {response.status_code}")
+    except Exception as e:
+        st.error(f"Error: {e}")
+
 
 
 # Function to check if a file already exists in Google Drive folder
@@ -276,6 +301,38 @@ def upload_sheets(uploaded_file, folder_id):
 
     st.success("The Excel sheet has been uploaded to the Google Drive.")
 
+def delete_all_from_folder(folder_id):
+    """
+    Deletes all files and subfolders from a Google Drive folder.
+    """
+    service = authenticate_drive()  # Authenticate using the provided function
+    try:
+        # List all files and folders in the given folder
+        query = f"'{folder_id}' in parents"
+        results = service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+        items = results.get('files', [])
+
+        if not items:
+            st.error("The folder is already empty!")
+            return
+
+        for item in items:
+            file_id = item['id']
+            file_name = item['name']
+            mime_type = item['mimeType']
+
+            try:
+                # Delete the file or folder
+                service.files().delete(fileId=file_id).execute()
+            except HttpError as error:
+                st.error(f"An error occurred while deleting {file_name}: {error}")
+
+        st.success(f"All data has been deleted.")
+
+    except HttpError as error:
+        st.error(f"An error occurred: {error}")
+
+
 
 # Helper function to connect to a specific Google Sheet
 def connect_to_google_sheets_with_name(sheet_name):
@@ -308,8 +365,7 @@ def get_student_details(username):
     # Find marks for the current user
     for record in records:
         if record['EMail ID'] == username:  # Ensure this matches your column name
-            return record['Unique ID'], record['Assigned Folder Link'], record[
-                'Spreadsheet Link']  # Returning the Unique id
+            return record['Unique ID'], record['Assigned Folder Link'], record['Spreadsheet Link']  # Returning the Unique id
 
     return None, None, None  # If no details found for the user
 
@@ -364,7 +420,8 @@ def get_student_pdf(unique_id):
 
 def renaming_files():
     folder_id = '1tsH69oimECrQwaFq58i9Hyh_iHjCJyjE'  # Replace with your Google Drive folder ID
-    process_pdfs_in_folder(folder_id)
+    num_files = process_pdfs_in_folder(folder_id)
+    return num_files
     # Authenticate Google Drive
     # service = authenticate_drive()
 
@@ -514,11 +571,11 @@ def copy_data_to_peer_eval(folder_id, target_spreadsheet_name, target_worksheet_
     try:
         target_worksheet = target_spreadsheet.worksheet(target_worksheet_name)
     except gspread.WorksheetNotFound:
-        print(f"Worksheet '{target_worksheet_name}' not found in the target spreadsheet.")
+        #print(f"Worksheet '{target_worksheet_name}' not found in the target spreadsheet.")
         return
 
     target_worksheet.clear()
-    print("Target worksheet cleared successfully.")
+    #print("Target worksheet cleared successfully.")
 
     # List all spreadsheets in the folder
     files = list_spreadsheets_in_folder(folder_id)
@@ -528,7 +585,7 @@ def copy_data_to_peer_eval(folder_id, target_spreadsheet_name, target_worksheet_
         file_name = file['name']
         mime_type = file['mimeType']
 
-        print(f"Processing file: {file_name}")
+        #print(f"Processing file: {file_name}")
 
         # If it's an Excel file, convert it to a Google Sheet
         if mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
@@ -543,11 +600,14 @@ def copy_data_to_peer_eval(folder_id, target_spreadsheet_name, target_worksheet_
         # Append data to the target worksheet
         if source_data:
             target_worksheet.append_rows(source_data, value_input_option="RAW")
+            st.success("Data copied to PeerEval successfully.")
             return
+        else:
+            st.error("Error copying data to PeerEval!")
 
-    print("Data copied to PeerEval worksheet successfully.")
+    #print("Data copied to PeerEval worksheet successfully.")
     #delete_all_spreadsheets_in_folder(folder_id)
-    print("Spreadsheet is removed successfully")
+    #print("Spreadsheet is removed successfully")
 
 
 # Function to clear all worksheet data except "Cumulative Marks"
@@ -590,7 +650,7 @@ def admin_dashboard():
 
     # Create tabs for each action
     tab, tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
-        ["Upload Data", "Rename Files", "Assign/De-Assign TA", "Pre Evaluation", "Reminder Mail", "Post Evaluation",
+        ["Upload Data", "Rename Files", "Role Manager", "Pre Evaluation", "Reminder Mail", "Post Evaluation",
          "Generate Charts", "Send Marks", "Cumulative Score", "Clear Files", "Change Password"])
 
     # Tab for File upload option
@@ -615,27 +675,41 @@ def admin_dashboard():
             time.sleep(2)
             logout()
             st.rerun()
+        
+        st.subheader("Clear Files for Re-Uploading")
+        if st.button("Clear Data"):
+            delete_all_from_folder(folder_id)
 
     with tab0:
         st.subheader("Rename PDF Files")
         if st.button("Rename Files"):
-            renaming_files()
-
+            count = renaming_files()
+            if count == 0:
+                st.error(f"No file for renaming has been found.")
+            else:
+                st.success(f"A total of {count} files are renamed.")
+    
     # Tab for TA update
     with tab1:
-        student_username = st.text_input("Enter Student's Username")
+        student_username = st.text_input("Enter Username")
+        st.subheader("Assign Teacher")
+        if st.button("Update Role to Teacher"):
+            if update_role_to_Teacher(student_username):
+                st.success(f"The role updated to Teacher.")
+            else:
+                st.error("Failed to update the role. Check if the username exists.")
         st.subheader("Assign TA")
         if st.button("Update Role to TA"):
             if update_role_to_ta(student_username):
                 st.success(f"{student_username.split('.')[0].capitalize()}'s role updated to TA.")
             else:
                 st.error("Failed to update the role. Check if the username exists and belongs to a student.")
-        st.subheader("De-assign TA")
+        st.subheader("Assign Student")
         if st.button("Update Role to Student"):
             if update_role_to_Student(student_username):
                 st.success(f"{student_username.split('.')[0].capitalize()}'s role updated to Student.")
             else:
-                st.error("Failed to update the role. Check if the username exists and belongs to a TA.")
+                st.error("Failed to update the role. Check if the username exists.")
 
     # Tab for Pre Evaluation
     with tab2:
@@ -643,24 +717,7 @@ def admin_dashboard():
         num_Questions = st.number_input("Enter the number of questions", min_value=1, max_value=100)
         # Button to submit the form
         if st.button("Set Parameters"):
-            # Prepare the data to send
-            data = {
-                "num_Questions": num_Questions  # Send `num_Questions` parameter
-            }
-
-            # Google Apps Script Web App URL (replace with your actual Web App URL)
-            url = "https://script.google.com/macros/s/AKfycbzaDj2vsimhgNg85w2tNi8v06zCGQjHi3o476JGKAvzs9eCBcgZlcAm7SDaCSWMYwJD/exec"
-            headers = {'Content-Type': 'application/json'}
-
-            try:
-                # Send a POST request to the Google Apps Script Web App
-                response = requests.post(url, data=json.dumps(data), headers=headers)
-                if response.status_code == 200:
-                    st.success(f"Data sent successfully! Response: {response.text}")
-                else:
-                    st.error(f"Failed to send data. Status code: {response.status_code}")
-            except Exception as e:
-                st.error(f"Error occurred: {e}")
+            send_data_to_script(num_Questions)
 
         target_spreadsheet_name = "UI/UX Peer Evaluation"
         # target_spreadsheet_name = "Sample_Run"
@@ -707,9 +764,12 @@ def admin_dashboard():
         st.subheader("Reset files for new Quiz/Exam/Test")
         if st.button("Reset Files"):
             reset_worksheets(target_spreadsheet_name, "Cumulative Marks")
+            delete_all_from_folder(folder_id)
+
         st.subheader("Delete all data")
         if st.button("Clear Files"):
             delete_other_worksheets(target_spreadsheet_name, target_worksheet_name)
+            delete_all_from_folder(folder_id)
 
     with tab9:
         change_password_dashboard()
@@ -726,14 +786,19 @@ def teacher_dashboard():
 
     # Create tabs for each action
     tab, tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
-        ["Rename Files", "Assign/De-Assign TA", "Pre Evaluation", "Reminder Mail", "Post Evaluation",
+        ["Rename Files", "Role Manager", "Pre Evaluation", "Reminder Mail", "Post Evaluation",
          "Generate Charts", "Send Marks", "Cumulative Score", "Clear Files", "Change Password"])
 
     # Tab for TA update
     with tab:
         st.subheader("Rename PDF Files")
         if st.button("Rename Files"):
-            renaming_files()
+            count = renaming_files()
+            if count == 0:
+                st.error(f"No file for renaming has been found.")
+            else:
+                st.success(f"A total of {count} files are renamed.")
+
     with tab0:
         student_username = st.text_input("Enter Student's Username")
         st.subheader("Assign TA")
@@ -742,12 +807,12 @@ def teacher_dashboard():
                 st.success(f"{student_username.split('.')[0].capitalize()}'s role updated to TA.")
             else:
                 st.error("Failed to update the role. Check if the username exists and belongs to a student.")
-        st.subheader("De-assign TA")
+        st.subheader("Assign Student")
         if st.button("Update Role to Student"):
             if update_role_to_Student(student_username):
                 st.success(f"{student_username.split('.')[0].capitalize()}'s role updated to Student.")
             else:
-                st.error("Failed to update the role. Check if the username exists and belongs to a TA.")
+                st.error("Failed to update the role. Check if the username exists.")
 
     # Tab for Pre Evaluation
     with tab1:
@@ -755,24 +820,7 @@ def teacher_dashboard():
         num_Questions = st.number_input("Enter the number of questions", min_value=1, max_value=100)
         # Button to submit the form
         if st.button("Set Parameters"):
-            # Prepare the data to send
-            data = {
-                "num_Questions": num_Questions  # Send `num_Questions` parameter
-            }
-
-            # Google Apps Script Web App URL (replace with your actual Web App URL)
-            url = "https://script.google.com/macros/s/AKfycbzaDj2vsimhgNg85w2tNi8v06zCGQjHi3o476JGKAvzs9eCBcgZlcAm7SDaCSWMYwJD/exec"
-            headers = {'Content-Type': 'application/json'}
-
-            try:
-                # Send a POST request to the Google Apps Script Web App
-                response = requests.post(url, data=json.dumps(data), headers=headers)
-                if response.status_code == 200:
-                    st.success(f"Data sent successfully! Response: {response.text}")
-                else:
-                    st.error(f"Failed to send data. Status code: {response.status_code}")
-            except Exception as e:
-                st.error(f"Error occurred: {e}")
+            send_data_to_script(num_Questions)
 
         folder_id = "1tsH69oimECrQwaFq58i9Hyh_iHjCJyjE"
         target_spreadsheet_name = "UI/UX Peer Evaluation"
@@ -819,9 +867,12 @@ def teacher_dashboard():
         st.subheader("Reset files for new Quiz/Exam/Test")
         if st.button("Reset Files"):
             reset_worksheets(target_spreadsheet_name, "Cumulative Marks")
+            delete_all_from_folder(folder_id)
+            
         st.subheader("Delete all data")
         if st.button("Clear Files"):
             delete_other_worksheets(target_spreadsheet_name, target_worksheet_name)
+            delete_all_from_folder(folder_id)
 
     with tab8:
         change_password_dashboard()
@@ -860,11 +911,19 @@ def ta_dashboard():
             time.sleep(2)
             logout()
             st.rerun()
+        
+        st.subheader("Clear Files for Re-Uploading")
+        if st.button("Clear Data"):
+            delete_all_from_folder(folder_id)
 
     with tab0:
         st.subheader("Rename PDF Files")
         if st.button("Rename Files"):
-            renaming_files()
+            count = renaming_files()
+            if count == 0:
+                st.error(f"No file for renaming has been found.")
+            else:
+                st.success(f"A total of {count} files are renamed.")
 
     # Tab for Pre Evaluation
     with tab1:
@@ -872,25 +931,7 @@ def ta_dashboard():
         num_Questions = st.number_input("Enter the number of questions", min_value=1, max_value=100)
         # Button to submit the form
         if st.button("Set Parameters"):
-            # Prepare the data to send
-            data = {
-                "num_Questions": num_Questions  # Send `num_Questions` parameter
-            }
-
-            # Google Apps Script Web App URL (replace with your actual Web App URL)
-            url = "https://script.google.com/macros/s/AKfycbzaDj2vsimhgNg85w2tNi8v06zCGQjHi3o476JGKAvzs9eCBcgZlcAm7SDaCSWMYwJD/exec"
-            headers = {'Content-Type': 'application/json'}
-
-            try:
-                # Send a POST request to the Google Apps Script Web App
-                response = requests.post(url, data=json.dumps(data), headers=headers)
-                if response.status_code == 200:
-                    st.success(f"Data sent successfully! Response: {response.text}")
-                else:
-                    st.error(f"Failed to send data. Status code: {response.status_code}")
-            except Exception as e:
-                st.error(f"Error occurred: {e}")
-
+            send_data_to_script(num_Questions)
 
         folder_id = "1tsH69oimECrQwaFq58i9Hyh_iHjCJyjE"
         target_spreadsheet_name = "UI/UX Peer Evaluation"
@@ -928,9 +969,12 @@ def ta_dashboard():
         st.subheader("Reset files for new Quiz/Exam/Test")
         if st.button("Reset Files"):
             reset_worksheets(target_spreadsheet_name, "Cumulative Marks")
+            delete_all_from_folder(folder_id)
+
         st.subheader("Delete all data")
         if st.button("Clear Files"):
             delete_other_worksheets(target_spreadsheet_name, target_worksheet_name)
+            delete_all_from_folder(folder_id)
 
     with tab6:
         change_password_dashboard()
@@ -956,7 +1000,7 @@ def student_dashboard():
         with t1:
             st.write("Link to Open Evaluation Files")
             if folder_link == -1:
-                st.success("Hurray! Nothing to Evaluate.")
+                st.success("Nothing to Evaluate.")
             elif folder_link:
                 st.markdown(f"[Evaluation Files]({folder_link})", unsafe_allow_html=True)
             else:
@@ -964,7 +1008,7 @@ def student_dashboard():
         with t2:
             st.write("Link to Open Evaluation Sheets")
             if sheet_link == -1:
-                st.success("Hurray! Nothing to Evaluate.")
+                st.success("Nothing to Evaluate.")
             elif sheet_link:
                 st.markdown(f"[Evaluation Sheet]({sheet_link})", unsafe_allow_html=True)
             else:
@@ -1082,9 +1126,9 @@ def main():
                 register_button = st.form_submit_button("Register")
 
                 if register_button:
-                    if not reg_username.endswith("@iitrpr.ac.in"):
-                        st.error("Email ID must be of @iitrpr.ac.in domain.")
-                    elif not validate_password(reg_password):
+                    # if not reg_username.endswith("@iitrpr.ac.in"):
+                    #     st.error("Email ID must be of @iitrpr.ac.in domain.")
+                    if not validate_password(reg_password):
                         st.error(
                             "Password must include at least One: - \n1. Uppercase letter. \n2. Lowercase letter. \n3. Special character. \n4. Numerical digit. \n5. Must be at least 8 characters long.")
                     else:
