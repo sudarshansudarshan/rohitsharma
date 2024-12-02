@@ -1,0 +1,98 @@
+{% extends "base.html" %} {% block title %} PeerEval : : Home {% endblock %} {% block header %} Docs list {% endblock %} {% block content %}
+
+<div class="mx-auto max-w-screen-xl px-4 lg:px-12">
+  <!-- Start coding here -->
+  <div
+    class="bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden"
+  >
+    <div class="overflow-x-auto">
+      <table
+        id="docsTable"
+        class="w-full text-sm text-left text-gray-500 dark:text-gray-400"
+      >
+        <thead
+          class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
+        >
+          <tr>
+            <th scope="col" class="px-4 py-3">Title</th>
+            <th scope="col" class="px-4 py-3">Description</th>
+            <th scope="col" class="px-4 py-3" id="sortRollNo">
+              Unique ID<span id="sort-icon">⇅</span>
+            </th>
+            <th scope="col" class="px-4 py-3">File</th>
+            <th scope="col" class="px-4 py-3">Peer Evaluations</th>
+            <th scope="col" class="px-4 py-3">
+              <span class="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in docs %}
+          <tr class="border-b dark:border-gray-700">
+            <th
+              scope="row"
+              class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap dark:text-white"
+            >
+              {{ doc.doc.title }}
+            </th>
+            <td class="px-4 py-3">{{ doc.doc.description }}</td>
+            <td class="px-4 py-3 roll-no">{{ doc.doc.roll_no }}</td>
+            <td class="px-4 py-3">
+              <a
+                href="{{ doc.doc.file.url }}"
+                class="text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                target="_blank"
+                >Download</a
+              >
+            </td>
+            <td class="px-4 py-3">
+              {% if doc.evaluations %} {% for eval in doc.evaluations %}
+              {{ eval.score }}, {% endfor %} {% else %} No evaluations yet {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  let isAsc = true;
+
+  // Adding click listener to the 'Roll No' column header
+  document.getElementById("sortRollNo").addEventListener("click", function () {
+    let rows = Array.from(document.querySelectorAll("tbody tr"));
+
+    // Sorting the rows based on the roll number
+    rows.sort((rowA, rowB) => {
+      const rollNoA = parseInt(
+        rowA.querySelector(".roll-no").innerText.trim(),
+        10
+      );
+      const rollNoB = parseInt(
+        rowB.querySelector(".roll-no").innerText.trim(),
+        10
+      );
+
+      // Log to ensure that the roll numbers are being parsed correctly
+      console.log(`Sorting: ${rollNoA} vs ${rollNoB}`);
+
+      if (isAsc) {
+        return rollNoA - rollNoB; // Ascending order
+      } else {
+        return rollNoB - rollNoA; // Descending order
+      }
+    });
+
+    // Reorder the rows in the table body after sorting
+    const tbody = document.querySelector("tbody");
+    rows.forEach((row) => tbody.appendChild(row));
+
+    // Toggle sorting order (ascending/descending) and change the icon
+    isAsc = !isAsc;
+    document.getElementById("sort-icon").innerText = isAsc ? "⇅" : "⇕"; // Update the sort icon
+  });
+</script>
+
+{% endblock %}
