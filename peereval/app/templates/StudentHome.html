@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100 font-sans">
+
+    <!-- Header -->
+    <header class="bg-gray-800 text-white p-4 shadow-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <!-- Logo/Title -->
+            <h1 class="text-3xl font-semibold">Student Dashboard</h1>
+
+            <!-- Navigation (Navbar) -->
+            <nav class="text-lg">
+                <ul class="flex space-x-6">
+                    <li>
+                        <button class="menu-item text-white hover:text-blue-300" data-content="profile">Profile</button>
+                    </li>
+                    <li>
+                        <button class="menu-item text-white hover:text-blue-300"
+                            data-content="evaluation-files">Evaluation Files</button>
+                    </li>
+                    <li>
+                        <button class="menu-item text-white hover:text-blue-300" data-content="results">Results</button>
+                    </li>
+                    <li>
+                        <button class="menu-item text-white hover:text-blue-300"
+                            data-content="settings">Settings</button>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Logout Button -->
+            <div>
+                <a href="/logout/">
+                    <button
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-all">Logout</button>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <div class="max-w-7xl mx-auto mt-8 p-4 grid grid-cols-1 md:grid-cols-4 gap-6">
+
+        <!-- Sidebar (Optional) - Hidden on smaller screens -->
+        <div class="col-span-1 md:block hidden bg-white p-4 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-800 mb-6">Quick Menu</h2>
+            <ul class="space-y-4">
+                <li><button class="menu-item text-gray-700 hover:text-blue-500" data-content="profile">Profile</button>
+                </li>
+                <li><button class="menu-item text-gray-700 hover:text-blue-500"
+                        data-content="evaluation-files">Evaluation Files</button></li>
+                <li><button class="menu-item text-gray-700 hover:text-blue-500" data-content="results">Results</button>
+                </li>
+                <li><button class="menu-item text-gray-700 hover:text-blue-500" data-content="daily_quiz">Daily
+                        Quiz</button>
+                </li>
+                <li><button class="menu-item text-gray-700 hover:text-blue-500"
+                        data-content="settings">Settings</button></li>
+            </ul>
+        </div>
+
+        <!-- Main Content Area (Responsive) -->
+        <div class="col-span-3">
+            <!-- Profile Section -->
+            <div id="profile" class="content-section hidden bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Profile</h2>
+                <p class="text-gray-700">Student Name: John Doe</p>
+                <p class="text-gray-500">Email: john.doe@student.com</p>
+                <p class="text-gray-500">Role: Student</p>
+            </div>
+
+            <div class="container mx-auto p-6">
+                <h1 class="text-2xl font-bold mb-6">Welcome, {{ request.user.username }}</h1>
+
+                <!-- Evaluation Files Section -->
+                <div id="evaluation-files" class="content-section bg-white p-6 rounded-lg shadow-md mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Evaluation Files</h2>
+                    {% if evaluation_files %}
+                    <p>You have the following evaluation files:</p>
+                    <table class="min-w-full table-auto mt-4">
+                        <thead>
+                            <tr>
+                                <th class="border px-4 py-2 text-left">Due Date</th>
+                                <th class="border px-4 py-2 text-left">Action</th>
+                                <th class="border px-4 py-2 text-left"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in evaluation_files %}
+                            <tr>
+                                <td class="border px-4 py-2">{{ file.evaluation_date|default:"N/A" }}</td>
+                                <td class="border px-4 py-2">
+                                    <a href="{{ file.file_url }}" class="text-blue-500 hover:text-blue-700"
+                                        target="_blank">Download</a>
+                                </td>
+                                <td class="border px-4 py-2">
+                                    {% if file.evaluated %}
+                                    <span class="text-green
+                                        font-semibold">Evaluated</span>
+                                    {% else %}
+                                    <span class="text-red-600 font-semibold">Not Evaluated</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-gray-600">No evaluation files assigned yet.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Evaluation Files Section -->
+                <div id="daily_quiz" class="content-section bg-white p-6 rounded-lg shadow-md mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Daily Quiz</h2>
+
+                    <!-- Form for Quiz Questions -->
+                    <form id="daily-quiz-form" class="space-y-6" method="POST" action="/evaluateAnswers/">
+                        {% csrf_token %}
+                        <!-- Question 1 -->
+                        <div>
+                            <label for="question1" class="block text-sm font-medium text-gray-700">
+                                1. What did you learn from today's lecture?
+                            </label>
+                            <textarea id="question1" name="answer1" rows="4"
+                                class="mt-2 block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3"
+                                placeholder="Write your answer here..."></textarea>
+                        </div>
+
+                        <!-- Question 2 -->
+                        <div>
+                            <label for="question2" class="block text-sm font-medium text-gray-700">
+                                2. Explore the web to explore today's topic and share your findings.
+                            </label>
+                            <textarea id="question2" name="answer2" rows="4"
+                                class="mt-2 block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3"
+                                placeholder="Write your answer here..."></textarea>
+                        </div>
+                        <!-- Submit Button -->
+                        <div class="mt-4">
+                            <button type="submit"
+                                class="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-md">
+                                Submit
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results" class="content-section bg-white p-6 rounded-lg shadow-md mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Results</h2>
+
+                    {% if own_documents %}
+                    <!-- Button for PDF download -->
+                    <div class="mb-4">
+                        <a href="/download_results/" download
+                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Download Results as PDF
+                        </a>
+                    </div>
+
+                    <!-- Table for results -->
+                    <table class="min-w-full table-auto mt-4">
+                        <thead>
+                            <tr>
+                                <th class="border px-4 py-2 text-left">Evaluation Item</th>
+                                <th class="border px-4 py-2 text-left">Evaluator ID</th>
+                                <th class="border px-4 py-2 text-left">Feedback</th>
+                                <th class="border px-4 py-2 text-left">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for document in own_documents %}
+                            <tr>
+                                <td class="border px-4 py-2 font-bold" colspan="4">{{ document.document_title }}</td>
+                            </tr>
+                            {% for review in document.peer_reviews %}
+                            <tr>
+                                <td class="border px-4 py-2">Peer Evaluation</td>
+                                <td class="border px-4 py-2">{{ review.evaluator_id }}</td>
+                                <td class="border px-4 py-2">{{ review.feedback|default:"No feedback provided" }}</td>
+                                <td class="border px-4 py-2">{{ review.score }}/100</td>
+                            </tr>
+                            {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-gray-600">No peer reviews available for your documents.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+
+            <!-- Settings Section -->
+            <div id="settings" class="content-section hidden bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Settings</h2>
+                <p class="mb-4">Choose an option to configure your settings:</p>
+                <ul class="space-y-4">
+                    <li><button class="text-gray-700 hover:text-blue-500">Change Email</button></li>
+                    <li><button class="text-gray-700 hover:text-blue-500">Reset Password</button></li>
+                    <li><button class="text-red-600 hover:text-red-700">Delete Account</button></li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Select all menu items and content sections
+        const menuItems = document.querySelectorAll('.menu-item');
+        const contentSections = document.querySelectorAll('.content-section');
+
+        // Add event listeners to each menu item
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Get the content section to show based on the data-content attribute
+                const targetContentId = item.getAttribute('data-content');
+                const targetContent = document.getElementById(targetContentId);
+
+                // Hide all content sections
+                contentSections.forEach(section => section.classList.add('hidden'));
+
+                // Show the selected content section
+                targetContent.classList.remove('hidden');
+            });
+        });
+    </script>
+
+</body>
+
+</html>

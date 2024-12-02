@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
+  <title>Registration Form</title>
+</head>
+<div class="container mt-5">
+  <!-- Toggle buttons -->
+  <div class="text-center mb-3">
+    <button id="toggle-login" class="btn btn-primary">Login</button>
+    <button id="toggle-register" class="btn btn-secondary">Register</button>
+  </div>
+
+  <!-- Login Form -->
+  <form id="login-form" class="col-6 mx-auto card p-3 shadow-lg" method="post" enctype="multipart/form-data"
+    style="display: none">
+    {% csrf_token %}
+    <h3>Login</h3>
+    <hr />
+    {% if messages %}
+    <div class="alert alert-primary" role="alert">
+      {% for message in messages %} {{ message }} {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-group">
+      <label for="login-username">Username</label>
+      <input type="text" class="form-control" id="login-username" name="username" placeholder="Enter username"
+        required />
+    </div>
+
+    <div class="form-group">
+      <label for="login-password">Password</label>
+      <input type="password" class="form-control" id="login-password" name="password" placeholder="Password" required />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Sign In</button>
+    <p>
+      Don't have an account? <a href="#" id="switch-to-register">Register</a>
+    </p>
+  </form>
+
+  <!-- Registration Form -->
+  <form id="register-form" class="col-6 mx-auto card p-3 shadow-lg" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <h3>Register</h3>
+    <hr />
+    {% if messages %}
+    <div class="alert alert-primary" role="alert">
+      {% for message in messages %} {{ message }} {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-group">
+      <label for="register-first-name">First Name</label>
+      <input type="text" class="form-control" id="register-first-name" name="first_name" placeholder="Enter First name"
+        required />
+    </div>
+
+    <div class="form-group">
+      <label for="register-last-name">Last Name</label>
+      <input type="text" class="form-control" id="register-last-name" name="last_name" placeholder="Enter Last name"
+        required />
+    </div>
+
+    <div class="form-group">
+      <label for="register-username">Username</label>
+      <input type="text" class="form-control" id="register-username" name="username" placeholder="Enter username"
+        required />
+    </div>
+
+    <div class="form-group">
+      <label for="register-password">Password</label>
+      <input type="password" class="form-control" id="register-password" name="password" placeholder="Password"
+        required />
+    </div>
+
+    <div class="form-group">
+      <label for="register-username">Roll no.</label>
+      <input type="text" class="form-control" id="register-roll_no" name="roll_no" placeholder="Roll number" required />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Register</button>
+    <p>Already have an account? <a href="#" id="switch-to-login">Login</a></p>
+  </form>
+</div>
+
+<script>
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  const toggleLogin = document.getElementById("toggle-login");
+  const toggleRegister = document.getElementById("toggle-register");
+  const switchToLogin = document.getElementById("switch-to-login");
+  const switchToRegister = document.getElementById("switch-to-register");
+
+  // Show login form and hide register form
+  toggleLogin.addEventListener("click", () => {
+    loginForm.style.display = "block";
+    registerForm.style.display = "none";
+  });
+
+  // Show register form and hide login form
+  toggleRegister.addEventListener("click", () => {
+    registerForm.style.display = "block";
+    loginForm.style.display = "none";
+  });
+
+  // Link inside forms for toggling
+  switchToLogin.addEventListener("click", (e) => {
+    e.preventDefault();
+    loginForm.style.display = "block";
+    registerForm.style.display = "none";
+  });
+
+  switchToRegister.addEventListener("click", (e) => {
+    e.preventDefault();
+    registerForm.style.display = "block";
+    loginForm.style.display = "none";
+  });
+
+  // Default: Show register form
+  registerForm.style.display = "block";
+</script>
+
+</html>
