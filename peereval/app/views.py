@@ -26,7 +26,7 @@ import google.generativeai as genai
 import json
 import base64
 
-genai.configure(api_key="AIzaSyBrat_wDHdrOGboCJfT-mYhyD_dpqipsbM")
+genai.configure(api_key="__Apikeyhere__")
 
 def geminiGenerate(prompt):
     model = genai.GenerativeModel('gemini-1.5-pro')
