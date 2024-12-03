@@ -9,7 +9,7 @@ from django.conf.urls.static import static  # Import static function
 # Define URL patterns
 urlpatterns = [
     path('AdminHome/', AdminDashboard, name="recipes"),      # Home page
-    path('login/', login_page, name='login_page'),    # Login page
+    path('login/', login_page, name='login'),    # Login page
     path('register/', register_page, name='register'),  # Registration page
     path('logout/', logout_user, name='logout'),  # Logout page
     path('docs/', evaluationList),

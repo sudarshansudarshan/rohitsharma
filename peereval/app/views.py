@@ -26,7 +26,7 @@ import google.generativeai as genai
 import json
 import base64
 
-genai.configure(api_key="__Apikeyhere__")
+genai.configure(api_key="AIzaSyBrat_wDHdrOGboCJfT-mYhyD_dpqipsbM")
 
 def geminiGenerate(prompt):
     model = genai.GenerativeModel('gemini-1.5-pro')
@@ -432,10 +432,11 @@ def register_page(request):
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
         username = request.POST.get('username')
+        email = request.POST.get('email')
         password = request.POST.get('password')
-        roll_no = request.POST.get('roll_no')
+        # roll_no = request.POST.get('roll_no')
 
-        print(first_name, last_name, username, password, roll_no)
+        print(first_name, last_name, username, email, password)
         
         # Check if a user with the provided username already exists
         user = User.objects.filter(username=username)
@@ -449,7 +450,8 @@ def register_page(request):
         user = User.objects.create_user(
             first_name=first_name,
             last_name=last_name,
-            username=username
+            username=username,
+            email=email
         )
         
         # Set the user's password and save the user object
