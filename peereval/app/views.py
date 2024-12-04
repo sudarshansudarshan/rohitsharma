@@ -9,13 +9,12 @@ from django.contrib.auth.models import User
 from .models import *
 from app.ocr import process_uploaded_pdf
 import os
-from math import sqrt, ceil
 from random import shuffle
 from collections import defaultdict
+import random
 
 # NOTE: This is admn dashboard
 from math import sqrt, ceil, floor
-from random import shuffle
 from collections import defaultdict
 import string
 from django.core.mail import send_mail
@@ -158,17 +157,23 @@ def AdminDashboard(request):
         user = User.objects.get(username=request.user)
         docs = request.FILES.getlist('doc')  # Get multiple uploaded files
 
+        if not numberOfQuestions.objects.get(id=1).number:
+            messages.info("Set Number of questions!")
+            return redirect('/logout/')
+
         document_instances = []
         document_peer_map = defaultdict(int)  # Track the number of peers assigned to each document
 
         for doc in docs:
             # Process each uploaded PDF
             uid, processed_doc = process_uploaded_pdf(doc)
+            # print("Done with processing file")
 
             # Ensure the student exists
             student = Student.objects.filter(uid=uid).first()
             if not student:
                 continue
+            # print("Student found")
 
             # Create and save the document object
             document = documents(
@@ -181,6 +186,7 @@ def AdminDashboard(request):
             # Generate the peer evaluation link using the encoded document ID
             document.save()
             document_instances.append(document)
+            # print("Saving document")
 
         # Assign peer evaluations
         num_peers = floor(sqrt(len(document_instances)))
@@ -196,7 +202,8 @@ def AdminDashboard(request):
         document_instances = document_instances * num_peers
         shuffle(document_instances)
 
-        peer_evaluations_assigned = defaultdict(int)  # Tracks evaluations per document
+        peer_evaluations_assigned = defaultdict(int)
+
 
         for document in document_instances:
             for student in all_students:
@@ -214,13 +221,16 @@ def AdminDashboard(request):
                         score=0,  # Placeholder
                         document=document,
                     )
-                    email = User.objects.get(pk=student.student_id_id).email
+                    # print("Document created")
+                    email = User.objects.get(id=student.student_id_id).email
+                    # print(email)
                     student_distribution[student.uid] -= 1
                     peer_evaluations_assigned[document.id] += 1
                     encoded_doc_id = encode_id(str(document.id) + " " + str(student.uid))
                     evaluation_link = f"http://127.0.0.1:8000/studentEval/{encoded_doc_id}/"
                     send_peer_evaluation_email(evaluation_link, email)
-                    break  # Move to the next document once assigned to a student
+                else:
+                    continue
             
         messages.success(request, 'Documents uploaded and peer evaluations assigned successfully!')
         return redirect('/AdminHome/')
@@ -457,10 +467,14 @@ def register_page(request):
         # Set the user's password and save the user object
         user.set_password(password)
         user.save()
+
+        user_id = User.objects.get(username=username).id
+        user_profile = UserProfile(user_id=user_id, role="Student")
+        user_profile.save()
         
         # Display an information message indicating successful account creation
         messages.info(request, "Account created Successfully!")
-        return redirect('/register/')
+        return redirect('/login/')
     
     # Render the registration page template (GET request)
     return render(request, 'register.html')
@@ -516,6 +530,10 @@ def uploadCSV(request):
                     if created:
                         user.set_password("Abcd@1234")
                         user.save()
+
+                        user_id = User.objects.get(username=data[1].split("@")[0]).id
+                        user_profile = UserProfile(user_id=user_id, role="Student")
+                        user_profile.save()
 
                     # Create or update Student record
                     Student.objects.update_or_create(
@@ -592,53 +610,61 @@ def studentHome(request):
         return redirect('/logout/')
 
     # Get the logged-in user's student profile
-    student_profile = Student.objects.filter(student_id=request.user).first()
-
-    if not student_profile:
-        return JsonResponse({'error': 'Student profile not found'}, status=404)
-
-    # Fetch the documents where the student is an evaluator
-    evaluation_files = PeerEvaluation.objects.filter(evaluator_id=student_profile.uid).select_related('document')
-
-    # Fetch documents submitted by the student for which peer reviews are available
-    own_documents = documents.objects.filter(uid=student_profile.uid).prefetch_related('peer_evaluations')
-
-    # Prepare data to send to the template
-    evaluation_files_data = [
-        {
-            'document_title': eval_file.document.title,
-            'description': eval_file.document.description,
-            'file_url': f"/studentEval/{encode_id(eval_file.document.id)}"  # Hides original URL
+    student_profile = Student.objects.get_or_create(
+        student_id_id=User.objects.get(id=user_profile.user_id).id,
+        defaults={
+            "student_id": User.objects.get(id=user_profile.user_id),
+            "uid": random.randint(10000, 99999)
         }
-        for eval_file in evaluation_files
-    ]
+    )
 
-    own_documents_data = [
-        {
-            'document_title': doc.title,
-            'description': doc.description,
-            'peer_reviews': [
-                {
-                    'evaluator_id': review.evaluator_id,
-                    'evaluation': review.evaluation,
-                    'feedback': review.feedback,
-                    'score': review.score,
-                }
-                for review in doc.peer_evaluations.all()
-            ]
-        }
-        for doc in own_documents
-    ]
-    # Last added topic
-    last_topic = CourseTopics.objects.last()
+    try:
+        # Fetch the documents where the student is an evaluator
+        evaluation_files = PeerEvaluation.objects.filter(evaluator_id=student_profile.uid).select_related('document')
 
-    # Return data in JSON format to the Jinja template
-    return render(request, 'studentHome.html', {
-        'evaluation_files': evaluation_files_data,
-        'own_documents': own_documents_data,
-        'topic': last_topic.topic
-    })
+        # Fetch documents submitted by the student for which peer reviews are available
+        own_documents = documents.objects.filter(uid=student_profile.uid).prefetch_related('peer_evaluations')
 
+        # Prepare data to send to the template
+        evaluation_files_data = [
+            {
+                'document_title': eval_file.document.title,
+                'description': eval_file.document.description,
+                'file_url': f"/studentEval/{encode_id(eval_file.document.id)}"  # Hides original URL
+            }
+            for eval_file in evaluation_files
+        ]
+
+        own_documents_data = [
+            {
+                'document_title': doc.title,
+                'description': doc.description,
+                'peer_reviews': [
+                    {
+                        'evaluator_id': review.evaluator_id,
+                        'evaluation': review.evaluation,
+                        'feedback': review.feedback,
+                        'score': review.score,
+                    }
+                    for review in doc.peer_evaluations.all()
+                ]
+            }
+            for doc in own_documents
+        ]
+
+        # Return data in JSON format to the Jinja template
+        return render(request, 'studentHome.html', {
+            'evaluation_files': evaluation_files_data,
+            'own_documents': own_documents_data,
+            'topic': CourseTopics.objects.last()
+        })
+
+    except:
+        return render(request, 'studentHome.html', {
+            'evaluation_files': [],
+            'own_documents': [],
+            'topic': CourseTopics.objects.last()
+        })
 
 # NOTE: View and evaluate the assignment
 def studentEval(request, eval_id):
@@ -655,6 +681,8 @@ def studentEval(request, eval_id):
         return redirect('/logout/')
 
     number_of_questions = numberOfQuestions.objects.filter(id=1).first().number
+    if not number_of_questions:
+        return redirect('/logout/')
     # Prepare data to pass to the template, including the document URL
 
     context = {
@@ -790,6 +818,7 @@ def evaluateAnswers(request):
             return redirect('/StudentHome/')
 
     return redirect('/StudentHome/')
+
 
 def TeacherHome(request):
     return render(request, 'TeacherHome.html')
