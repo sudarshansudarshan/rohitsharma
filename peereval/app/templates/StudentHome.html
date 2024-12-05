@@ -78,7 +78,13 @@
 
         <!-- Main Content Area (Responsive) -->
         <div class="col-span-3">
-            <h1 class="text-2xl font-bold mb-6">Welcome, {{ request.user.username }}</h1>
+            <!-- Profile Section -->
+            <div id="profile" class="content-section hidden bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Profile</h2>
+                <p class="text-gray-700">Name : {{ request.user.username }}</p>
+                <p class="text-gray-500">Email: {{ request.user.email }}</p>
+                <p class="text-gray-500">Role : Student</p>
+            </div>
 
             <div class="container mx-auto p-6">
 

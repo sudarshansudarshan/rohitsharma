@@ -210,11 +210,13 @@ def AdminDashboard(request):
         for doc in docs:
             # Process each uploaded PDF and retrieve UID
             uid, processed_doc = process_uploaded_pdf(doc)
+            # print("Done with processing file")
 
             # Ensure the student exists
             student = Student.objects.filter(uid=uid).first()
             if not student:
                 continue
+            # print("Student found")
 
             # Create and save the document object
             document = documents(
@@ -226,6 +228,7 @@ def AdminDashboard(request):
             )
             document.save()
             document_instances.append(document)
+            # print("Saving document")
 
         # Call setPeerEval function only once with the collected document instances
         if document_instances:
@@ -452,9 +455,14 @@ def register_page(request):
         user_id = User.objects.get(username=username).id
         user_profile = UserProfile(user_id=user_id, role="Student")
         user_profile.save()
+
+        user_id = User.objects.get(username=username).id
+        user_profile = UserProfile(user_id=user_id, role="Student")
+        user_profile.save()
         
         # Display an information message indicating successful account creation
         messages.info(request, "Account created Successfully!")
+        return redirect('/login/')
         return redirect('/login/')
     
     # Render the registration page template (GET request)
@@ -511,6 +519,10 @@ def uploadCSV(request):
                     if created:
                         user.set_password("Abcd@1234")
                         user.save()
+
+                        user_id = User.objects.get(username=data[1].split("@")[0]).id
+                        user_profile = UserProfile(user_id=user_id, role="Student")
+                        user_profile.save()
 
                         user_id = User.objects.get(username=data[1].split("@")[0]).id
                         user_profile = UserProfile(user_id=user_id, role="Student")
