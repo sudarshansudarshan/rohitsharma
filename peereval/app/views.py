@@ -1,6 +1,5 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-# Import necessary modules and models
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -12,8 +11,6 @@ import os
 from random import shuffle
 from collections import defaultdict
 import random
-
-# NOTE: This is admn dashboard
 from math import sqrt, ceil, floor
 from collections import defaultdict
 import string
@@ -25,81 +22,82 @@ import google.generativeai as genai
 import json
 import base64
 
-genai.configure(api_key="AIzaSyBrat_wDHdrOGboCJfT-mYhyD_dpqipsbM")
+# genai.configure(api_key="AIzaSyBrat_wDHdrOGboCJfT-mYhyD_dpqipsbM")
 
-def geminiGenerate(prompt):
-    model = genai.GenerativeModel('gemini-1.5-pro')
-    response = model.generate_content(prompt)
-    return response.text
-
-
-def parse_llama_json(text):
-    # Extract JSON part from the generated text
-    start_idx = text.find('{')
-    end_idx = text.rfind('}') + 1
-
-    if start_idx == -1 or end_idx == -1:
-        raise ValueError("No valid JSON found in the text")
-
-    json_part = text[start_idx:end_idx]
-
-    # Parse the extracted JSON
-    try:
-        parsed_data = json.loads(json_part)
-        return parsed_data
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse JSON: {e}")
+# def geminiGenerate(prompt):
+#     model = genai.GenerativeModel('gemini-1.5-pro')
+#     response = model.generate_content(prompt)
+#     return response.text
 
 
-def evaluate_answers(answer1, answer2, topic):
-    prompt = f"""
-    The topic of discussion was: """ + topic + """. I want to evaluate the following student answers:
+# def parse_llama_json(text):
+#     # Extract JSON part from the generated text
+#     start_idx = text.find('{')
+#     end_idx = text.rfind('}') + 1
+
+#     if start_idx == -1 or end_idx == -1:
+#         raise ValueError("No valid JSON found in the text")
+
+#     json_part = text[start_idx:end_idx]
+
+#     # Parse the extracted JSON
+#     try:
+#         parsed_data = json.loads(json_part)
+#         return parsed_data
+#     except json.JSONDecodeError as e:
+#         raise ValueError(f"Failed to parse JSON: {e}")
+
+
+# def evaluate_answers(answer1, answer2, topic):
+#     prompt = f"""
+#     The topic of discussion was: """ + topic + """. I want to evaluate the following student answers:
     
-    **Task:** As an AI Assistant, assess the answers provided based on their originality, quality, and relevance to the topic. Also, evaluate the percentage of AI-generated content in the answers. Provide the output in **JSON format** with the following structure:
+#     **Task:** As an AI Assistant, assess the answers provided based on their originality, quality, and relevance to the topic. Also, evaluate the percentage of AI-generated content in the answers. Provide the output in **JSON format** with the following structure:
     
-    **Evaluation Criteria:**
-    1. **Score (0 to 10):** Reflects the quality, depth, and relevance of the answer.
-    2. **AI Plagiarism Score (0 to 1):** Indicates the likelihood of the content being AI-generated or plagiarized from online sources.
+#     **Evaluation Criteria:**
+#     1. **Score (0 to 10):** Reflects the quality, depth, and relevance of the answer.
+#     2. **AI Plagiarism Score (0 to 1):** Indicates the likelihood of the content being AI-generated or plagiarized from online sources.
 
-    **Expected JSON Response Format:**
-    ```json
-    {
-        "question 1": {
-            "score": <quality_score_between_0_to_10>,
-            "ai": <ai_plagiarism_score_between_0_to_10>,
-            "feedback": "<optional_feedback_message>"
-        },
-        "question 2": {
-            "score": <quality_score_between_0_to_10>,
-            "ai": <ai_plagiarism_score_between_0_to_10>
-            "feedback": "<optional_feedback_message>"
-        }
-    }
-    ```
+#     **Expected JSON Response Format:**
+#     ```json
+#     {
+#         "question 1": {
+#             "score": <quality_score_between_0_to_10>,
+#             "ai": <ai_plagiarism_score_between_0_to_10>,
+#             "feedback": "<optional_feedback_message>"
+#         },
+#         "question 2": {
+#             "score": <quality_score_between_0_to_10>,
+#             "ai": <ai_plagiarism_score_between_0_to_10>
+#             "feedback": "<optional_feedback_message>"
+#         }
+#     }
+#     ```
     
-    **Student Answers:**
-    - Question 1: """ + answer1 + """
-    - Question 2: """ + answer2 + """
+#     **Student Answers:**
+#     - Question 1: """ + answer1 + """
+#     - Question 2: """ + answer2 + """
 
-    Ensure the response strictly follows the JSON format and provides clear scores for each answer.
-    """
+#     Ensure the response strictly follows the JSON format and provides clear scores for each answer.
+#     """
 
-    scores = parse_llama_json(geminiGenerate(prompt))
+#     scores = parse_llama_json(geminiGenerate(prompt))
 
-    # Calculate aggregate score (penalizing AI plagiarism)
-    aggregate_score = (
-        (scores['question 1']['score'] * (1 - scores['question 1']['ai'])) +
-        (scores['question 2']['score'] * (1 - scores['question 2']['ai']))
-    )/2
+#     # Calculate aggregate score (penalizing AI plagiarism)
+#     aggregate_score = (
+#         (scores['question 1']['score'] * (1 - scores['question 1']['ai'])) +
+#         (scores['question 2']['score'] * (1 - scores['question 2']['ai']))
+#     )/2
 
-    # Return the aggregate results
-    return {
-        "aggregate_score": round(aggregate_score, 2),
-        "answers": " ".join([answer1, answer2]),
-        "feedback": " ".join([scores['question 1']['feedback'], scores['question 2']['feedback']]),
-        "ai_scores": [scores['question 1']['ai'], scores['question 2']['ai']],
-        "scores": [scores['question 1']['score'], scores['question 2']['score']]
-    }
+#     # Return the aggregate results
+#     return {
+#         "aggregate_score": round(aggregate_score, 2),
+#         "answers": " ".join([answer1, answer2]),
+#         "feedback": " ".join([scores['question 1']['feedback'], scores['question 2']['feedback']]),
+#         "ai_scores": [scores['question 1']['ai'], scores['question 2']['ai']],
+#         "scores": [scores['question 1']['score'], scores['question 2']['score']]
+#     }
+
 
 # Secret key for encryption and decryption (You should keep this key secret)
 SECRET_KEY = "MySuperSecretKey"
@@ -144,6 +142,52 @@ def decode_id(encoded_str):
     return int(document_id), int(evaluator_id)
 
 
+def setPeerEval(document_instances): 
+    # Assign peer evaluations
+    num_peers = floor(sqrt(len(document_instances)))
+    all_students = list(Student.objects.all())
+    shuffle(all_students)
+
+    # Create a distribution map to track how many evaluations each student can still review
+    student_distribution = {
+        student.uid: num_peers for student in all_students
+    }
+
+    # Duplicate document list to ensure each document is considered multiple times
+    document_instances = document_instances * num_peers
+    shuffle(document_instances)
+
+    peer_evaluations_assigned = defaultdict(int)
+
+
+    for document in document_instances:
+        for student in all_students:
+            if (
+                student.uid != document.uid.uid  # Avoid assigning a student to their own document
+                and student_distribution[student.uid] > 0  # Ensure the student can still evaluate more
+                and peer_evaluations_assigned[document.id] < num_peers  # Ensure the document gets enough reviewers
+            ):
+                # Assign evaluation
+                PeerEvaluation.objects.create(
+                    evaluator_id=student.uid,
+                    evaluation_date=None,  # Placeholder
+                    evaluation=[],  # Placeholder
+                    feedback=[],  # Placeholder
+                    score=0,  # Placeholder
+                    document=document,
+                )
+                # print("Document created")
+                # email = User.objects.get(id=student.student_id_id).email
+                # # print(email)
+                # student_distribution[student.uid] -= 1
+                # peer_evaluations_assigned[document.id] += 1
+                # encoded_doc_id = encode_id(str(document.id) + " " + str(student.uid))
+                # evaluation_link = f"http://127.0.0.1:8000/studentEval/{encoded_doc_id}/"
+                # send_peer_evaluation_email(evaluation_link, email)
+            else:
+                continue
+            
+
 def AdminDashboard(request):
     # Check if the user has a role that allows file uploads (Admin only)
     user_profile = UserProfile.objects.filter(user=request.user).first()
@@ -156,13 +200,52 @@ def AdminDashboard(request):
         description = request.POST.get('description')
         user = User.objects.get(username=request.user)
         docs = request.FILES.getlist('doc')  # Get multiple uploaded files
-
-        if not numberOfQuestions.objects.get(id=1).number:
-            messages.info("Set Number of questions!")
-            return redirect('/logout/')
-
         document_instances = []
-        document_peer_map = defaultdict(int)  # Track the number of peers assigned to each document
+
+        for doc in docs:
+            # Process each uploaded PDF
+            uid, processed_doc = process_uploaded_pdf(doc)
+            # print("Done with processing file")
+
+            # Ensure the student exists
+            student = Student.objects.filter(uid=uid).first()
+            if not student:
+                continue
+            # print("Student found")
+
+            # Create and save the document object
+            document = documents(
+                title=title,
+                description=description,
+                user_id=user,
+                uid=student,
+                file=processed_doc
+            )
+            # Generate the peer evaluation link using the encoded document ID
+            document.save()
+            document_instances.append(document)
+        setPeerEval(document_instances)
+        
+        messages.success(request, 'Documents uploaded successfully!')
+        return redirect('/AdminHome/')
+    
+    return render(request, 'AdminDashboard.html', {'users': user_profile.serialize()})
+
+
+# NOTE: This is TA dashboard
+def TAHome(request):
+    # Check if the user has a role that allows file uploads
+    user_profile = UserProfile.objects.filter(user=request.user).first()
+    if not user_profile or user_profile.role != 'TA' or not request.user.is_authenticated:
+        messages.error(request, 'Permission denied')
+        return redirect('/login/')
+
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        user = User.objects.get(username=request.user)
+        docs = request.FILES.getlist('doc')  # Get multiple uploaded files
+        document_instances = []
 
         for doc in docs:
             # Process each uploaded PDF
@@ -187,134 +270,20 @@ def AdminDashboard(request):
             document.save()
             document_instances.append(document)
             # print("Saving document")
-
-        # Assign peer evaluations
-        num_peers = floor(sqrt(len(document_instances)))
-        all_students = list(Student.objects.all())
-        shuffle(all_students)
-
-        # Create a distribution map to track how many evaluations each student can still review
-        student_distribution = {
-            student.uid: num_peers for student in all_students
-        }
-
-        # Duplicate document list to ensure each document is considered multiple times
-        document_instances = document_instances * num_peers
-        shuffle(document_instances)
-
-        peer_evaluations_assigned = defaultdict(int)
-
-
-        for document in document_instances:
-            for student in all_students:
-                if (
-                    student.uid != document.uid.uid  # Avoid assigning a student to their own document
-                    and student_distribution[student.uid] > 0  # Ensure the student can still evaluate more
-                    and peer_evaluations_assigned[document.id] < num_peers  # Ensure the document gets enough reviewers
-                ):
-                    # Assign evaluation
-                    PeerEvaluation.objects.create(
-                        evaluator_id=student.uid,
-                        evaluation_date=None,  # Placeholder
-                        evaluation=[],  # Placeholder
-                        feedback=[],  # Placeholder
-                        score=0,  # Placeholder
-                        document=document,
-                    )
-                    # print("Document created")
-                    email = User.objects.get(id=student.student_id_id).email
-                    # print(email)
-                    student_distribution[student.uid] -= 1
-                    peer_evaluations_assigned[document.id] += 1
-                    encoded_doc_id = encode_id(str(document.id) + " " + str(student.uid))
-                    evaluation_link = f"http://127.0.0.1:8000/studentEval/{encoded_doc_id}/"
-                    send_peer_evaluation_email(evaluation_link, email)
-                else:
-                    continue
-            
-        messages.success(request, 'Documents uploaded and peer evaluations assigned successfully!')
-        return redirect('/AdminHome/')
-
-    return render(request, 'AdminDashboard.html', {'users': user_profile.serialize()})
-
-
-# NOTE: This is TA dashboard
-def TAHome(request):
-
-    # Check if the user has a role that allows file uploads (Admin only)
-    user_profile = UserProfile.objects.filter(user=request.user).first()
-    if not user_profile or user_profile.role != 'TA' or not request.user.is_authenticated:
-        messages.error(request, 'Permission denied')
-        return redirect('/logout/')
-
-    if request.method == 'POST':
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        user = User.objects.get(username=request.user)
-        docs = request.FILES.getlist('doc')  # Get multiple uploaded files
-
-        document_instances = []
-        student_document_map = defaultdict(list)  # Map to track documents by student UID
-
-        for doc in docs:
-            # Process each uploaded PDF
-            uid, processed_doc = process_uploaded_pdf(doc)
-
-            # Ensure the student exists
-            student = Student.objects.filter(uid=uid).first()
-            if not student:
-                continue
-
-            # Create and save the document object
-            document = documents(
-                title=title,
-                description=description,
-                user_id=user,
-                uid=student,
-                file=processed_doc
-            )
-            document.save()
-            document_instances.append(document)
-            student_document_map[student.uid].append(document)
-
-        # Assign peer evaluations
-        num_docs = len(document_instances)
-        num_peers = ceil(sqrt(num_docs))
-        all_students = list(Student.objects.all())
-        shuffle(all_students)  # Randomize the order of students
-
-        # Assign documents to peers
-        for document in document_instances:
-            assigned_peers = set()
-            for student in all_students:
-                if len(assigned_peers) >= num_peers:
-                    break
-                if student.uid not in assigned_peers and document.uid.uid != student.uid:
-                    PeerEvaluation.objects.create(
-                        evaluator_id=student.uid,
-                        evaluation_date=None,  # To be filled during evaluation
-                        evaluation='',  # Placeholder
-                        feedback='',  # Placeholder
-                        score=0,  # Placeholder
-                        document=document,
-                        count = num_peers
-                    )
-                    assigned_peers.add(student.uid)
-
-        messages.success(request, 'Documents uploaded and peer evaluations assigned successfully!')
+        setPeerEval(document_instances)
+        
+        messages.success(request, 'Documents uploaded successfully!')
         return redirect('/TAHome/')
-
-    # Last added topic
-    last_topic = CourseTopics.objects.last()
-    return render(request, 'TAHome.html', {'users': user_profile.serialize(), 'topic': last_topic.topic})
+    
+    return render(request, 'TAHome.html', {'users': user_profile.serialize()})
 
 
 # NOTE: This is Teacher dashboard
 def TeacherHome(request):
-    # Check if the user has a role that allows file uploads (TA, Teacher, Admin)
+    # Check if the user has a role that allows file uploads
     user_profile = UserProfile.objects.filter(user=request.user).first()
     if not user_profile or user_profile.role != 'Teacher' or not request.user.is_authenticated:
-        messages.error(request, 'You do not have permission to upload files.')
+        messages.error(request, 'Permission denied')
         return redirect('/login/')
 
     if request.method == 'POST':
@@ -322,15 +291,18 @@ def TeacherHome(request):
         description = request.POST.get('description')
         user = User.objects.get(username=request.user)
         docs = request.FILES.getlist('doc')  # Get multiple uploaded files
+        document_instances = []
 
         for doc in docs:
             # Process each uploaded PDF
             uid, processed_doc = process_uploaded_pdf(doc)
+            # print("Done with processing file")
 
             # Ensure the student exists
             student = Student.objects.filter(uid=uid).first()
             if not student:
                 continue
+            # print("Student found")
 
             # Create and save the document object
             document = documents(
@@ -340,15 +312,20 @@ def TeacherHome(request):
                 uid=student,
                 file=processed_doc
             )
+            # Generate the peer evaluation link using the encoded document ID
             document.save()
-
+            document_instances.append(document)
+            # print("Saving document")
+        setPeerEval(document_instances)
+        
         messages.success(request, 'Documents uploaded successfully!')
-        return redirect('/AdminHome/')
+        return redirect('/TeacherHome')
+    
+    return render(request, 'TeacherHome.html', {'users': user_profile.serialize()})
 
-    return render(request, 'TeacherHome.html')
 
 
-# NOTE: This is route for uploading bunch of PDF Files
+# NOTE: This is route for uploading bunch of PDF Files and creating the users
 def uploadFile(request):
     if request.method == 'POST':
         file = request.FILES.get('csv-upload')
@@ -656,14 +633,14 @@ def studentHome(request):
         return render(request, 'studentHome.html', {
             'evaluation_files': evaluation_files_data,
             'own_documents': own_documents_data,
-            'topic': CourseTopics.objects.last()
+            # 'topic': CourseTopics.objects.last()
         })
 
     except:
         return render(request, 'studentHome.html', {
             'evaluation_files': [],
             'own_documents': [],
-            'topic': CourseTopics.objects.last()
+            # 'topic': CourseTopics.objects.last()
         })
 
 # NOTE: View and evaluate the assignment
@@ -750,78 +727,77 @@ def send_peer_evaluation_email(evaluation_link, email_id):
     )
 
 
-# NOTE: Associate topic
-def associateTopic(request):
-    # Check if the user has a role that allows file uploads (Admin only)
-    user_profile = UserProfile.objects.filter(user=request.user).first()
-    if not user_profile or user_profile.role not in ["TA", "Admin", "Teacher"] or not request.user.is_authenticated:
-        messages.error(request, 'Permission denied')
-        return redirect('/logout/')
+# # NOTE: Associate topic
+# def associateTopic(request):
+#     # Check if the user has a role that allows file uploads (Admin only)
+#     user_profile = UserProfile.objects.filter(user=request.user).first()
+#     if not user_profile or user_profile.role not in ["TA", "Admin", "Teacher"] or not request.user.is_authenticated:
+#         messages.error(request, 'Permission denied')
+#         return redirect('/logout/')
 
-    if request.method == 'POST':
-        topic = request.POST.get('topic')
-        topic = CourseTopics(
-            topic=topic,
-            prof=User.objects.get(username=request.user)
-        )
-        topic.save()
+#     if request.method == 'POST':
+#         topic = request.POST.get('topic')
+#         topic = CourseTopics(
+#             topic=topic,
+#             prof=User.objects.get(username=request.user)
+#         )
+#         topic.save()
 
-        messages.success(request, 'Topic added successfully!')
-        return redirect('/TAHome/')
-
-
-#NOTE: Evaluate the answers with LLM
-def evaluateAnswers(request):
-    # Ensure the user is authenticated and has a valid profile
-    user_profile = UserProfile.objects.filter(user=request.user).first()
-    if not user_profile or not request.user.is_authenticated:
-        messages.error(request, 'Permission denied')
-        return redirect('/logout/')
-
-    if request.method == 'POST':
-        # Get answers from POST request
-        answer1 = request.POST.get('answer1', '').strip()
-        answer2 = request.POST.get('answer2', '').strip()
-
-        if not answer1 or not answer2:
-            messages.error(request, 'Both answers are required.')
-            return redirect('/StudentHome/')
-
-        # Get the latest topic
-        topic = CourseTopics.objects.last()
-        if not topic:
-            messages.error(request, 'No topic available for evaluation.')
-            return redirect('/StudentHome/')
-
-        if LLMEvaluation.objects.filter(CourseTopic=topic, student=request.user).exists():
-            messages.error(request, 'You have already evaluated this topic.')
-            return redirect('/StudentHome/')
-
-        try:
-            # Evaluate answers
-            evaluated_results = evaluate_answers(answer1, answer2, topic.topic)
-
-            # Save evaluation results to the database
-            LLMEvaluation.objects.create(
-                CourseTopic=topic,
-                student=request.user,
-                answer=evaluated_results["answers"],
-                feedback=evaluated_results["feedback"],
-                score=evaluated_results["scores"],
-                ai=evaluated_results["ai_scores"],
-                aggregate=evaluated_results["aggregate_score"]
-            )
-
-            messages.success(request, 'Evaluation submitted successfully!')
-        except Exception as e:
-            messages.error(request, f"An error occurred during evaluation: {e}")
-            return redirect('/StudentHome/')
-
-    return redirect('/StudentHome/')
+#         messages.success(request, 'Topic added successfully!')
+#         return redirect('/TAHome/')
 
 
-def TeacherHome(request):
-    return render(request, 'TeacherHome.html')
+
+# #NOTE: Evaluate the answers with LLM
+# def evaluateAnswers(request):
+#     # Ensure the user is authenticated and has a valid profile
+#     user_profile = UserProfile.objects.filter(user=request.user).first()
+#     if not user_profile or not request.user.is_authenticated:
+#         messages.error(request, 'Permission denied')
+#         return redirect('/logout/')
+
+#     if request.method == 'POST':
+#         # Get answers from POST request
+#         answer1 = request.POST.get('answer1', '').strip()
+#         answer2 = request.POST.get('answer2', '').strip()
+
+#         if not answer1 or not answer2:
+#             messages.error(request, 'Both answers are required.')
+#             return redirect('/StudentHome/')
+
+#         # Get the latest topic
+#         topic = CourseTopics.objects.last()
+#         if not topic:
+#             messages.error(request, 'No topic available for evaluation.')
+#             return redirect('/StudentHome/')
+
+#         if LLMEvaluation.objects.filter(CourseTopic=topic, student=request.user).exists():
+#             messages.error(request, 'You have already evaluated this topic.')
+#             return redirect('/StudentHome/')
+
+#         try:
+#             # Evaluate answers
+#             evaluated_results = evaluate_answers(answer1, answer2, topic.topic)
+
+#             # Save evaluation results to the database
+#             LLMEvaluation.objects.create(
+#                 CourseTopic=topic,
+#                 student=request.user,
+#                 answer=evaluated_results["answers"],
+#                 feedback=evaluated_results["feedback"],
+#                 score=evaluated_results["scores"],
+#                 ai=evaluated_results["ai_scores"],
+#                 aggregate=evaluated_results["aggregate_score"]
+#             )
+
+#             messages.success(request, 'Evaluation submitted successfully!')
+#         except Exception as e:
+#             messages.error(request, f"An error occurred during evaluation: {e}")
+#             return redirect('/StudentHome/')
+
+#     return redirect('/StudentHome/')
+
+
 
 def logout_user(request):
     logout(request)

@@ -63,26 +63,26 @@ class PeerEvaluation(models.Model):
     def __str__(self):
         return f'Peer Evaluation for Document {self.document.title}'
 
-#NOTE: Experimental
-class CourseTopics(models.Model):
-    id = models.AutoField(primary_key=True)
-    topic = models.CharField(max_length=200, blank=True, null=True)
-    date = models.DateTimeField(auto_now_add=True)
-    prof = models.ForeignKey(User, on_delete=models.CASCADE)
+# #NOTE: Experimental
+# class CourseTopics(models.Model):
+#     id = models.AutoField(primary_key=True)
+#     topic = models.CharField(max_length=200, blank=True, null=True)
+#     date = models.DateTimeField(auto_now_add=True)
+#     prof = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return self.topic
+#     def __str__(self):
+#         return self.topic
 
-class LLMEvaluation(models.Model):
-    id = models.AutoField(primary_key=True)
-    CourseTopic = models.ForeignKey('CourseTopics', on_delete=models.CASCADE)
-    student = models.ForeignKey(User, on_delete=models.CASCADE)
-    answer = models.TextField()
-    feedback = models.TextField()
-    score = models.TextField()
-    ai = models.TextField()
-    aggregate = models.IntegerField()
-    date = models.DateTimeField(auto_now_add=True)
+# class LLMEvaluation(models.Model):
+#     id = models.AutoField(primary_key=True)
+#     CourseTopic = models.ForeignKey('CourseTopics', on_delete=models.CASCADE)
+#     student = models.ForeignKey(User, on_delete=models.CASCADE)
+#     answer = models.TextField()
+#     feedback = models.TextField()
+#     score = models.TextField()
+#     ai = models.TextField()
+#     aggregate = models.IntegerField()
+#     date = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f'LLM Evaluation for {self.student.username}'
+#     def __str__(self):
+#         return f'LLM Evaluation for {self.student.username}'

@@ -18,12 +18,10 @@ urlpatterns = [
     path('change_role/', change_role),  # Django admin page
     path('questionNumbers/', questionNumbers),
     path('changePassword/', changePassword),
-
     path('TAHome/', TAHome),
     path('TeacherHome/', TeacherHome),
-    path('associateTopic/', associateTopic),
-    path('evaluateAnswers/', evaluateAnswers),
-
+    # path('associateTopic/', associateTopic),
+    # path('evaluateAnswers/', evaluateAnswers),
     path('StudentHome/', studentHome),
     path('studentEval/<str:eval_id>/', studentEval, name='studentEval'),
 
