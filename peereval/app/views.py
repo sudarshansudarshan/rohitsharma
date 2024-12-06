@@ -740,7 +740,6 @@ def send_peer_evaluation_email(evaluation_link, email_id):
     )
     plain_message = strip_tags(html_message)  # Fallback plain text version
     
-    # Send the email
     send_mail(
         subject=subject,
         message=plain_message,
