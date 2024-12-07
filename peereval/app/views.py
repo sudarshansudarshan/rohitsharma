@@ -764,23 +764,42 @@ def studentEval(request, doc_id, eval_id):
 
 
 def send_reminder_mail(request):
-    pending_evaluations = PeerEvaluation.objects.filter(evaluated=False).select_related('document')
+    # Fetch PeerEvaluation entries where 'evaluated' is False
+    pending_evaluations = PeerEvaluation.objects.filter(evaluated=False)
 
-    # Get email IDs of the users associated with the pending evaluations
-    email_ids = []
+    # Create a set to store email IDs to avoid duplicates
+    email_ids = set()
+
     for evaluation in pending_evaluations:
-        # Fetching the evaluator's user details based on the evaluator_id
-        student = Student.objects.filter(uid=evaluation.evaluator_id).select_related('student_id').first()
-        if student and student.student_id.email:
-            email_ids.append(student.student_id.email)
+        try:
+            # Fetching the evaluator's student profile
+            student = Student.objects.filter(uid=evaluation.evaluator_id).select_related('student_id').first()
+            
+            if student and student.student_id.email:
+                email_ids.add(student.student_id.email)  # Add email to the set
+        except Exception as e:
+            print(f"Error fetching student email for evaluator_id {evaluation.evaluator_id}: {e}")
+            continue
+
+    # Send reminder emails to all collected email IDs
+    if email_ids:
+        for email in email_ids:
+            try:
+                send_mail(
+                    subject="Reminder: Pending Evaluation",
+                    message="Dear Student,\n\nYou have pending evaluations. Please complete them as soon as possible.\n\nThank you!",
+                    from_email="admin@example.com",  # Update with your email
+                    recipient_list=[email],
+                )
+            except Exception as e:
+                messages.error(request, f"Error sending email to {email}: {e}")
     
-    for email in email_ids:
-        send_mail(
-            subject="Reminder: Pending Evaluation",
-            message="Dear Student, you have pending evaluations. Please complete them as soon as possible.",
-            from_email="admin@example.com",
-            recipient_list=[email],
-        )
+    # Display a success message on the frontend
+    messages.success(request, "Reminder emails sent successfully!")
+    current_user_profile = UserProfile.objects.filter(user=request.user).first()
+    
+    return redirect(f"/{current_user_profile.role}Home/")
+
 
 def home(request):
     return redirect('/login/')

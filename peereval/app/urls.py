@@ -24,7 +24,7 @@ urlpatterns = [
     path('TeacherHome/', TeacherHome),
     path('StudentHome/', studentHome),
     path('studentEval/<str:doc_id>/<str:eval_id>/', studentEval, name='studentEval'),
-    path('send_email/', send_reminder_mail),
+    path('send_email/', send_reminder_mail, name='send_reminder_mail'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
