@@ -80,18 +80,6 @@
                     <button class="menu-item text-gray-700 hover:text-blue-500"
                         data-content="settings">Settings</button>
                 </li>
-                <!-- Messages Section -->
-            <div class="mt-6 space-y-4">
-                {% for message in messages %}
-                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 rounded-lg">
-                    <div class="flex justify-between items-center">
-                        <p class="text-sm">{{ message }}</p>
-                        <button class="text-blue-500 hover:text-blue-700"
-                            onclick="this.parentElement.parentElement.remove()">×</button>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
             </ul>
 
             <!-- Messages Section -->

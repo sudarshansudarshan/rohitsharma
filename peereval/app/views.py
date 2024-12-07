@@ -17,7 +17,6 @@ import string
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from django.db.models import Prefetch
 import requests
 import google.generativeai as genai
 import json
@@ -143,6 +142,31 @@ def decode_id(encoded_str):
     return int(document_id), int(evaluator_id)
 
 
+# NOTE: Send email to the assigned peer
+def send_peer_evaluation_email(evaluation_link, email_id):
+    """
+    Sends a peer evaluation email to the assigned peer with an HTML template.
+    """
+    subject = "Peer Evaluation Request"
+    
+    # Render the HTML template
+    html_message = render_to_string(
+        "EvalMailTemplate.html",  # Path to your email template
+        {
+            "evaluation_link": evaluation_link,  # Link to the evaluation
+        },
+    )
+    plain_message = strip_tags(html_message)  # Fallback plain text version
+    
+    # Send the email
+    send_mail(
+        subject=subject,
+        message=plain_message,
+        from_email="no-reply@evaluation-system.com",
+        recipient_list=[email_id],
+        html_message=html_message,  # Attach the HTML message
+        fail_silently=False,)
+
 def setPeerEval(document_instances):
     """
     Assign peer evaluations to students.
@@ -177,19 +201,21 @@ def setPeerEval(document_instances):
                     score=0,  # Placeholder
                     document=document,
                 )
-
-                # Update counters and distribution
+                email = User.objects.get(pk=student.student_id_id).email
                 student_distribution[student.uid] -= 1
                 peer_evaluations_assigned[document.id] += 1
                 current_assigned_count += 1
-
-                # Break if sufficient evaluators have been assigned for this document
+                # encoded_doc_id = encode_id(str(document.id) + " " + str(student.uid))
+                evaluation_link = f"http://127.0.0.1:8000/studentEval/{document.id}/{student.uid}/"
+                send_peer_evaluation_email(evaluation_link, email)
+                
                 if current_assigned_count == num_peers:
                     break
 
     return  # Function ends here with evaluations assigned
 
 
+# NOTE: The Admin dashboard
 def AdminDashboard(request):
     """
     Handles the Admin Dashboard functionality, including document uploads and peer evaluation assignment.
@@ -210,13 +236,11 @@ def AdminDashboard(request):
         for doc in docs:
             # Process each uploaded PDF and retrieve UID
             uid, processed_doc = process_uploaded_pdf(doc)
-            # print("Done with processing file")
 
             # Ensure the student exists
             student = Student.objects.filter(uid=uid).first()
             if not student:
                 continue
-            # print("Student found")
 
             # Create and save the document object
             document = documents(
@@ -228,20 +252,23 @@ def AdminDashboard(request):
             )
             document.save()
             document_instances.append(document)
-            # print("Saving document")
 
         # Call setPeerEval function only once with the collected document instances
         if document_instances:
             setPeerEval(document_instances)
 
-        messages.success(request, 'Documents uploaded and peer evaluations assigned successfully!')
+        messages.success(request, 'Documents uploaded and Peer evaluations assigned successfully!')
         return redirect('/AdminHome/')
 
     return render(request, 'AdminDashboard.html', {'users': user_profile.serialize()})
 
+
 # NOTE: This is TA dashboard
 def TAHome(request):
-    # Check if the user has a role that allows file uploads
+    """
+    Handles the TA Dashboard functionality, including document uploads and peer evaluation assignment.
+    """
+    # Check if the user is an TA
     user_profile = UserProfile.objects.filter(user=request.user).first()
     if not user_profile or user_profile.role != 'TA' or not request.user.is_authenticated:
         messages.error(request, 'Permission denied')
@@ -255,15 +282,13 @@ def TAHome(request):
         document_instances = []
 
         for doc in docs:
-            # Process each uploaded PDF
+            # Process each uploaded PDF and retrieve UID
             uid, processed_doc = process_uploaded_pdf(doc)
-            # print("Done with processing file")
 
             # Ensure the student exists
             student = Student.objects.filter(uid=uid).first()
             if not student:
                 continue
-            # print("Student found")
 
             # Create and save the document object
             document = documents(
@@ -273,21 +298,25 @@ def TAHome(request):
                 uid=student,
                 file=processed_doc
             )
-            # Generate the peer evaluation link using the encoded document ID
             document.save()
             document_instances.append(document)
-            # print("Saving document")
-        setPeerEval(document_instances)
-        
-        messages.success(request, 'Documents uploaded successfully!')
+
+        # Call setPeerEval function only once with the collected document instances
+        if document_instances:
+            setPeerEval(document_instances)
+
+        messages.success(request, 'Documents uploaded and Peer evaluations assigned successfully!')
         return redirect('/TAHome/')
-    
+
     return render(request, 'TAHome.html', {'users': user_profile.serialize()})
 
 
 # NOTE: This is Teacher dashboard
 def TeacherHome(request):
-    # Check if the user has a role that allows file uploads
+    """
+    Handles the Teacher Dashboard functionality, including document uploads and peer evaluation assignment.
+    """
+    # Check if the user is an Teacher
     user_profile = UserProfile.objects.filter(user=request.user).first()
     if not user_profile or user_profile.role != 'Teacher' or not request.user.is_authenticated:
         messages.error(request, 'Permission denied')
@@ -301,15 +330,13 @@ def TeacherHome(request):
         document_instances = []
 
         for doc in docs:
-            # Process each uploaded PDF
+            # Process each uploaded PDF and retrieve UID
             uid, processed_doc = process_uploaded_pdf(doc)
-            # print("Done with processing file")
 
             # Ensure the student exists
             student = Student.objects.filter(uid=uid).first()
             if not student:
                 continue
-            # print("Student found")
 
             # Create and save the document object
             document = documents(
@@ -319,21 +346,22 @@ def TeacherHome(request):
                 uid=student,
                 file=processed_doc
             )
-            # Generate the peer evaluation link using the encoded document ID
             document.save()
             document_instances.append(document)
-            # print("Saving document")
-        setPeerEval(document_instances)
-        
-        messages.success(request, 'Documents uploaded successfully!')
-        return redirect('/TeacherHome')
-    
-    return render(request, 'TeacherHome.html', {'users': user_profile.serialize()})
 
+        # Call setPeerEval function only once with the collected document instances
+        if document_instances:
+            setPeerEval(document_instances)
+
+        messages.success(request, 'Documents uploaded and Peer evaluations assigned successfully!')
+        return redirect('/TeacherHome/')
+
+    return render(request, 'TeacherHome.html', {'users': user_profile.serialize()})
 
 
 # NOTE: This is route for uploading bunch of PDF Files and creating the users
 def uploadFile(request):
+    user_profile = UserProfile.objects.filter(user=user).first()
     if request.method == 'POST':
         file = request.FILES.get('csv-upload')
         file_data = file.read().decode("utf-8")
@@ -374,8 +402,8 @@ def uploadFile(request):
                     continue
 
         messages.info(request, 'Students uploaded successfully!')
-        return redirect('/AdminHome/')
-    return render(request, 'uploadFile.html')
+        return redirect(f"/{user_profile.role}Home/")
+    return redirect('/logout/')
 
 
 # NOTE: This is route for logging in
@@ -400,20 +428,8 @@ def login_page(request):
             return redirect('/login/')
         else:
             user_profile = UserProfile.objects.filter(user=user).first()
-            if user_profile.role == "Admin":
-                login(request, user)
-                return redirect('/AdminHome/')
-            elif user_profile.role == "TA":
-                login(request, user)
-                return redirect('/TAHome/')
-            elif user_profile.role == "Teacher":
-                login(request, user)
-                return redirect('/TeacherHome/')
-            elif user_profile.role == "Student":
-                login(request, user)
-                return redirect('/StudentHome/')
             login(request, user)
-            return redirect('/AdminHome/')
+            return redirect(f"/{user_profile.role}Home/")
     
     # Render the login page template (GET request)
     return render(request, 'login.html')
@@ -455,19 +471,13 @@ def register_page(request):
         user_id = User.objects.get(username=username).id
         user_profile = UserProfile(user_id=user_id, role="Student")
         user_profile.save()
-
-        user_id = User.objects.get(username=username).id
-        user_profile = UserProfile(user_id=user_id, role="Student")
-        user_profile.save()
         
         # Display an information message indicating successful account creation
         messages.info(request, "Account created Successfully!")
         return redirect('/login/')
-        return redirect('/login/')
     
     # Render the registration page template (GET request)
     return render(request, 'register.html')
-
 
 
 def evaluationList(request):
@@ -521,12 +531,8 @@ def uploadCSV(request):
                         user.save()
 
                         user_id = User.objects.get(username=data[1].split("@")[0]).id
-                        user_profile = UserProfile(user_id=user_id, role="Student")
-                        user_profile.save()
-
-                        user_id = User.objects.get(username=data[1].split("@")[0]).id
-                        user_profile = UserProfile(user_id=user_id, role="Student")
-                        user_profile.save()
+                        new_user_profile = UserProfile(user_id=user_id, role="Student")
+                        new_user_profile.save()
 
                     # Create or update Student record
                     Student.objects.update_or_create(
@@ -538,8 +544,8 @@ def uploadCSV(request):
                     continue
 
         messages.info(request, 'Students uploaded successfully!')
-        return redirect('/AdminHome/')
-    return redirect('/AdminHome/')
+        return redirect(f"/{user_profile.role}Home/")
+    return redirect(f"/{user_profile.role}Home/")
 
 
 # TODO: Working fine but getting status code 302
@@ -549,7 +555,7 @@ def change_role(request):
         current_user_profile = UserProfile.objects.filter(user=request.user).first()
         if not current_user_profile or current_user_profile.role not in ['TA', 'Teacher', 'Admin']:
             messages.error(request, 'You do not have permission to modify roles.')
-            return redirect('/AdminHome/')
+            return redirect(f"/{current_user_profile.role}Home/")
 
         try:
             user = User.objects.get(username=request.POST.get('username'))
@@ -564,12 +570,12 @@ def change_role(request):
             messages.success(request, f"Role for {user.username} updated.")
         except User.DoesNotExist:
             messages.error(request, 'User not found.')
-
-    return redirect('/AdminHome/')
+    return redirect(f"/{current_user_profile.role}Home/")
 
 
 # NOTE: Update number of questions in particular test
 def questionNumbers(request):
+    current_user_profile = UserProfile.objects.filter(user=request.user).first()
     if request.method == 'POST':
         number = request.POST.get('num-questions')
         numQue = numberOfQuestions.objects.filter(id=1).first()
@@ -579,8 +585,8 @@ def questionNumbers(request):
             numQue.number = number
         numQue.save()
         messages.success(request, 'Number of questions updated successfully!')
-        return redirect('/AdminHome/')
-    return render(request, 'questionNumbers.html')
+        return redirect(f"/{current_user_profile.role}Home/")
+    return redirect('/logout/')
 
 
 # NOTE: Change password route
@@ -591,8 +597,13 @@ def changePassword(request):
         user.save()
         messages.error(request, 'Password changed')
         return redirect('/logout/')
-    return render(request, 'changePassword.html')
+    return render(request, 'login.html')
 
+
+def forgetPassword(request):
+    if request.method == 'POST':
+        return redirect('/login/')
+    return render(request, 'changePassword.html')
 
 def studentHome(request):
     try:
@@ -620,10 +631,11 @@ def studentHome(request):
             }
             for doc in evaluation_files
         ]
+
         # Fetch documents submitted by the student
         own_documents = documents.objects.filter(uid=student_profile).prefetch_related('peerevaluation_set')
 
-                # Prepare data for the student's own documents
+        # Prepare data for the student's own documents
         own_documents_data = [
             {
                 'document_title': doc.title,
@@ -632,7 +644,7 @@ def studentHome(request):
                     {
                         'evaluator_id': review.evaluator_id,
                         'evaluation': review.evaluation or [],
-                        'feedback': " , ".join(eval(review.feedback)),
+                        'feedback': "No feedback found" if " ".join(eval(review.feedback)).strip() == "" else ",".join(eval(review.feedback)).strip(),
                         'score': review.score or 0,
                     }
                     for review in doc.peerevaluation_set.all()
@@ -648,7 +660,6 @@ def studentHome(request):
         return render(request, 'studentHome.html', {
             'evaluation_files': evaluation_files_data,
             'own_documents': own_documents_data,
-            'aggregate': own_documents_data[0]['aggregate_marks'],
         })
 
     except Exception as e:
@@ -661,6 +672,7 @@ def studentHome(request):
         })
 
 
+# NOTE: view and evaluate the assignment
 def studentEval(request, doc_id, eval_id):
     # Parse document and evaluator IDs
     try:
@@ -724,30 +736,31 @@ def studentEval(request, doc_id, eval_id):
     return render(request, 'AssignmentView.html', context)
 
 
-# NOTE: Send email to the assigned peer
-def send_peer_evaluation_email(evaluation_link, email_id):
-    """
-    Sends a peer evaluation email to the assigned peer with an HTML template.
-    """
-    subject = "Peer Evaluation Request"
+# # NOTE: Send email to the assigned peer
+# def send_peer_evaluation_email(evaluation_link, email_id):
+#     """
+#     Sends a peer evaluation email to the assigned peer with an HTML template.
+#     """
+#     subject = "Peer Evaluation Request"
     
-    # Render the HTML template
-    html_message = render_to_string(
-        "EvalMailTemplate.html",  # Path to your email template
-        {
-            "evaluation_link": evaluation_link,  # Link to the evaluation
-        },
-    )
-    plain_message = strip_tags(html_message)  # Fallback plain text version
+#     # Render the HTML template
+#     html_message = render_to_string(
+#         "EvalMailTemplate.html",  # Path to your email template
+#         {
+#             "evaluation_link": evaluation_link,  # Link to the evaluation
+#         },
+#     )
+#     plain_message = strip_tags(html_message)  # Fallback plain text version
     
-    send_mail(
-        subject=subject,
-        message=plain_message,
-        from_email="no-reply@evaluation-system.com",
-        recipient_list=[email_id],
-        html_message=html_message,  # Attach the HTML message
-        fail_silently=False,
-    )
+#     # Send the email
+#     send_mail(
+#         subject=subject,
+#         message=plain_message,
+#         from_email="no-reply@evaluation-system.com",
+#         recipient_list=[email_id],
+#         html_message=html_message,  # Attach the HTML message
+#         fail_silently=False,
+#     )
 
 
 # # NOTE: Associate topic
@@ -773,52 +786,72 @@ def send_peer_evaluation_email(evaluation_link, email_id):
 
 # #NOTE: Evaluate the answers with LLM
 # def evaluateAnswers(request):
-#     # Ensure the user is authenticated and has a valid profile
-#     user_profile = UserProfile.objects.filter(user=request.user).first()
-#     if not user_profile or not request.user.is_authenticated:
-#         messages.error(request, 'Permission denied')
-#         return redirect('/logout/')
+    # # Ensure the user is authenticated and has a valid profile
+    # user_profile = UserProfile.objects.filter(user=request.user).first()
+    # if not user_profile or not request.user.is_authenticated:
+    #     messages.error(request, 'Permission denied')
+    #     return redirect('/logout/')
 
-#     if request.method == 'POST':
-#         # Get answers from POST request
-#         answer1 = request.POST.get('answer1', '').strip()
-#         answer2 = request.POST.get('answer2', '').strip()
+    # if request.method == 'POST':
+    #     # Get answers from POST request
+    #     answer1 = request.POST.get('answer1', '').strip()
+    #     answer2 = request.POST.get('answer2', '').strip()
 
-#         if not answer1 or not answer2:
-#             messages.error(request, 'Both answers are required.')
-#             return redirect('/StudentHome/')
+    #     if not answer1 or not answer2:
+    #         messages.error(request, 'Both answers are required.')
+    #         return redirect('/StudentHome/')
 
-#         # Get the latest topic
-#         topic = CourseTopics.objects.last()
-#         if not topic:
-#             messages.error(request, 'No topic available for evaluation.')
-#             return redirect('/StudentHome/')
+    #     # Get the latest topic
+    #     topic = CourseTopics.objects.last()
+    #     if not topic:
+    #         messages.error(request, 'No topic available for evaluation.')
+    #         return redirect('/StudentHome/')
 
-#         if LLMEvaluation.objects.filter(CourseTopic=topic, student=request.user).exists():
-#             messages.error(request, 'You have already evaluated this topic.')
-#             return redirect('/StudentHome/')
+    #     if LLMEvaluation.objects.filter(CourseTopic=topic, student=request.user).exists():
+    #         messages.error(request, 'You have already evaluated this topic.')
+    #         return redirect('/StudentHome/')
 
-#         try:
-#             # Evaluate answers
-#             evaluated_results = evaluate_answers(answer1, answer2, topic.topic)
+    #     try:
+    #         # Evaluate answers
+    #         evaluated_results = evaluate_answers(answer1, answer2, topic.topic)
 
-#             # Save evaluation results to the database
-#             LLMEvaluation.objects.create(
-#                 CourseTopic=topic,
-#                 student=request.user,
-#                 answer=evaluated_results["answers"],
-#                 feedback=evaluated_results["feedback"],
-#                 score=evaluated_results["scores"],
-#                 ai=evaluated_results["ai_scores"],
-#                 aggregate=evaluated_results["aggregate_score"]
-#             )
+    #         # Save evaluation results to the database
+    #         LLMEvaluation.objects.create(
+    #             CourseTopic=topic,
+    #             student=request.user,
+    #             answer=evaluated_results["answers"],
+    #             feedback=evaluated_results["feedback"],
+    #             score=evaluated_results["scores"],
+    #             ai=evaluated_results["ai_scores"],
+    #             aggregate=evaluated_results["aggregate_score"]
+    #         )
 
-#             messages.success(request, 'Evaluation submitted successfully!')
-#         except Exception as e:
-#             messages.error(request, f"An error occurred during evaluation: {e}")
-#             return redirect('/StudentHome/')
+    #         messages.success(request, 'Evaluation submitted successfully!')
+    #     except Exception as e:
+    #         messages.error(request, f"An error occurred during evaluation: {e}")
+    #         return redirect('/StudentHome/')
 
-#     return redirect('/StudentHome/')
+    # return redirect('/StudentHome/')
+
+
+def send_reminder_mail(request):
+    pending_evaluations = PeerEvaluation.objects.filter(evaluated=False).select_related('document')
+
+    # Get email IDs of the users associated with the pending evaluations
+    email_ids = []
+    for evaluation in pending_evaluations:
+        # Fetching the evaluator's user details based on the evaluator_id
+        student = Student.objects.filter(uid=evaluation.evaluator_id).select_related('student_id').first()
+        if student and student.student_id.email:
+            email_ids.append(student.student_id.email)
+    
+    for email in email_ids:
+        send_mail(
+            subject="Reminder: Pending Evaluation",
+            message="Dear Student, you have pending evaluations. Please complete them as soon as possible.",
+            from_email="admin@example.com",
+            recipient_list=[email],
+        )
 
 def home(request):
     return redirect('/login/')

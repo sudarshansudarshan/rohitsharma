@@ -19,12 +19,14 @@ urlpatterns = [
     path('change_role/', change_role),  # Django admin page
     path('questionNumbers/', questionNumbers),
     path('changePassword/', changePassword),
+    path('forgetPassword/', forgetPassword),
     path('TAHome/', TAHome),
     path('TeacherHome/', TeacherHome),
     # path('associateTopic/', associateTopic),
     # path('evaluateAnswers/', evaluateAnswers),
     path('StudentHome/', studentHome),
     path('studentEval/<str:doc_id>/<str:eval_id>/', studentEval, name='studentEval'),
+    path('send_email/', send_reminder_mail),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
