@@ -22,8 +22,6 @@ urlpatterns = [
     path('forgetPassword/', forgetPassword),
     path('TAHome/', TAHome),
     path('TeacherHome/', TeacherHome),
-    # path('associateTopic/', associateTopic),
-    # path('evaluateAnswers/', evaluateAnswers),
     path('StudentHome/', studentHome),
     path('studentEval/<str:doc_id>/<str:eval_id>/', studentEval, name='studentEval'),
     path('send_email/', send_reminder_mail),
